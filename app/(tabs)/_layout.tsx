@@ -1,35 +1,85 @@
+import { Colors } from '@/constants/Colors';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+function TabIcon({ label, focused, icon }: { label: string; focused: boolean; icon: string }) {
+  return (
+    <View style={styles.tabItem}>
+      <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>{icon}</Text>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>{label}</Text>
+    </View>
+  );
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarStyle: styles.tabBar,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: Colors.dark.primary,
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="chat"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon label="Chat" focused={focused} icon="💬" />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="dashboard"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon label="Painel" focused={focused} icon="📊" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon label="Ajustes" focused={focused} icon="⚙️" />
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: Colors.dark.surface,
+    borderTopColor: Colors.dark.border,
+    borderTopWidth: 0.5,
+    height: Platform.OS === 'ios' ? 85 : 70,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+    paddingTop: 10,
+    elevation: 0,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    minWidth: 60,
+  },
+  tabIcon: {
+    fontSize: 20,
+    opacity: 0.4,
+  },
+  tabIconFocused: {
+    opacity: 1,
+    fontSize: 22,
+  },
+  tabLabel: {
+    fontSize: 11,
+    color: Colors.dark.textMuted,
+    fontWeight: '500',
+  },
+  tabLabelFocused: {
+    color: Colors.dark.primary,
+    fontWeight: '700',
+  },
+});

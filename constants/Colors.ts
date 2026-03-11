@@ -5,47 +5,51 @@
 export const Colors = {
   dark: {
     // Backgrounds
-    background: '#0F0F1A',
-    surface: '#161625',
-    surfaceElevated: '#1E1E2F',
-    border: '#2A2A40',
+    background: '#12121a',
+    surface: 'rgba(18,18,26,0.98)', // Bottom nav
+    surfaceElevated: 'rgba(40,40,55,0.9)', // Input container
+    border: 'rgba(255,255,255,0.08)', // Input border
+    borderNav: 'rgba(255,255,255,0.06)', // Bottom nav border
+    borderHeader: 'rgba(255,255,255,0.05)',
 
     // Text
-    text: '#EEEEF5',
-    textSecondary: '#9999B0',
-    textMuted: '#55556A',
+    text: 'rgba(240,240,255,0.92)', // AI text
+    textSecondary: 'rgba(140,140,165,0.7)', // Input placeholder
+    textMuted: '#5a5a6a', // inactive icon and label
 
-    // Accent — purple/blue gradient endpoints
-    primary: '#7B5EFF',
-    primaryLight: '#9B7FFF',
-    accent: '#4E6AFF',
-    gradientStart: '#7B5EFF',
-    gradientEnd: '#4E6AFF',
+    // Accent
+    primary: '#a78bfa', // accent text and active icons
+    primaryLight: '#a78bfa',
+    gradientStart: 'rgba(88,60,180,0.35)', // AI Bubble Start
+    gradientEnd: 'rgba(60,60,140,0.25)', // AI Bubble End
+    bubbleBorder: 'rgba(167,139,250,0.25)',
 
-    // Status
+    // Chat
+    chatUserBubble: 'rgba(240, 240, 255, 0.92)',
+    chatUserText: '#1a1a2e',
+    chatAiText: 'rgba(240,240,255,0.92)',
+
+    // Mic FAB
+    micFabStart: '#8b5cf6',
+    micFabMid: '#6366f1',
+    micFabEnd: '#3b82f6',
+
+    // Status / Agent Colors
     error: '#FF4466',
-    warning: '#FFB833',
-    success: '#4ADE80',
+    agentFinancier: '#34d399',
+    agentSecretary: '#60a5fa',
 
-    // Agent colors
+    // Legacy tokens to fix TS errors in other screens
     agentFinancial: '#4ADE80',
     agentCalendar: '#4E6AFF',
     agentEmail: '#FFB833',
     agentGeneral: '#9999B0',
-
-    // Chat
-    chatUserBubble: '#E0E0E8',
-    chatUserText: '#1A1A2E',
-    chatAiBubble: '#1E1E2F',
-    chatAiText: '#EEEEF5',
-
-    // Active indicator
     activeDot: '#4ADE80',
-
-    // Mic FAB glow
-    micGlowOuter: 'rgba(123, 94, 255, 0.3)',
-    micGlowInner: 'rgba(78, 106, 255, 0.5)',
-    micFab: '#4E6AFF',
+    micGlowOuter: 'rgba(85, 81, 254, 0.4)',
+    micGlowInner: 'rgba(85, 81, 254, 0.6)',
+    micFab: '#5551FE',
+    success: '#4ADE80',
+    warning: '#FFB833',
   },
 } as const;
 

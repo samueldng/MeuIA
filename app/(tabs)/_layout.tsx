@@ -1,11 +1,12 @@
+import { BarChartIcon, ChatIcon, SettingsTabIcon } from '@/components/ui/Icons';
 import { Colors } from '@/constants/Colors';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
-function TabIcon({ label, focused, icon }: { label: string; focused: boolean; icon: string }) {
+function TabIcon({ label, focused, IconComponent }: { label: string; focused: boolean; IconComponent: React.ComponentType<{ active?: boolean }> }) {
   return (
     <View style={styles.tabItem}>
-      <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>{icon}</Text>
+      <IconComponent active={focused} />
       <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>{label}</Text>
     </View>
   );
@@ -25,7 +26,7 @@ export default function TabLayout() {
         name="chat"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="Chat" focused={focused} icon="💬" />
+            <TabIcon label="Chat" focused={focused} IconComponent={ChatIcon} />
           ),
         }}
       />
@@ -33,7 +34,7 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="Painel" focused={focused} icon="📊" />
+            <TabIcon label="Painel" focused={focused} IconComponent={BarChartIcon} />
           ),
         }}
       />
@@ -41,7 +42,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="Ajustes" focused={focused} icon="⚙️" />
+            <TabIcon label="Ajustes" focused={focused} IconComponent={SettingsTabIcon} />
           ),
         }}
       />
@@ -52,8 +53,8 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.dark.surface,
-    borderTopColor: Colors.dark.border,
-    borderTopWidth: 0.5,
+    borderTopColor: Colors.dark.surfaceElevated,
+    borderTopWidth: 1,
     height: Platform.OS === 'ios' ? 85 : 70,
     paddingBottom: Platform.OS === 'ios' ? 25 : 10,
     paddingTop: 10,
@@ -66,20 +67,17 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   tabIcon: {
-    fontSize: 20,
-    opacity: 0.4,
+    // Removed since we use Ionicons direct sizing
   },
   tabIconFocused: {
-    opacity: 1,
-    fontSize: 22,
   },
   tabLabel: {
     fontSize: 11,
-    color: Colors.dark.textMuted,
+    color: Colors.dark.textSecondary,
     fontWeight: '500',
   },
   tabLabelFocused: {
-    color: Colors.dark.primary,
+    color: Colors.dark.primaryLight,
     fontWeight: '700',
   },
 });

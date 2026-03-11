@@ -29,7 +29,7 @@ export default function OnboardingScreen() {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         >
             <View style={styles.content}>
                 {/* Animated glow circle */}

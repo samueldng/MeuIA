@@ -11,8 +11,8 @@ interface ChatState {
 
     addMessage: (message: ChatMessage) => void;
     setActiveAgent: (agent: AgentSlug) => void;
-    sendTextMessage: (text: string, userId: string, aiName: string) => Promise<void>;
-    sendVoiceMessage: (audioBase64: string, userId: string, aiName: string) => Promise<void>;
+    sendTextMessage: (text: string, userId: string, aiName: string, userName: string) => Promise<void>;
+    sendVoiceMessage: (audioBase64: string, userId: string, aiName: string, userName: string) => Promise<void>;
     loadHistory: (userId: string) => Promise<void>;
 }
 
@@ -26,7 +26,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     setActiveAgent: (activeAgent) => set({ activeAgent }),
 
-    sendTextMessage: async (text, userId, aiName) => {
+    sendTextMessage: async (text, userId, aiName, userName) => {
         const userMessage: ChatMessage = {
             _id: Date.now().toString(),
             text,
@@ -37,28 +37,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ isTyping: true });
 
         try {
-            const recentMessages = get().messages.slice(0, 10).map((m) => ({
-                role: typeof m.user._id === 'string' && m.user._id === userId ? 'user' : 'assistant',
-                message: m.text,
-            }));
-
             const response: N8NResponse = await sendMessage({
-                user_id: userId,
-                message: text,
-                context: recentMessages.reverse(),
-                ai_name: aiName,
+                mensagem: text,
+                nome_ia: aiName,
+                usuario: userName,
             });
 
             const aiMessage: ChatMessage = {
                 _id: (Date.now() + 1).toString(),
-                text: response.response,
+                text: response.resposta,
                 createdAt: new Date(),
                 user: { _id: 'ai', name: aiName, avatar: '🤖' },
-                agent: response.agent,
+                agent: 'general',
             };
 
             get().addMessage(aiMessage);
-            set({ activeAgent: (response.agent as AgentSlug) || 'general' });
+            set({ activeAgent: 'general' });
         } catch (error) {
             const errorMessage: ChatMessage = {
                 _id: (Date.now() + 1).toString(),
@@ -72,26 +66,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
     },
 
-    sendVoiceMessage: async (audioBase64, userId, aiName) => {
+    sendVoiceMessage: async (audioBase64, userId, aiName, userName) => {
         set({ isTyping: true });
 
         try {
             const response: N8NResponse = await sendAudio({
-                user_id: userId,
-                audio_base64: audioBase64,
-                ai_name: aiName,
+                mensagem: audioBase64,
+                nome_ia: aiName,
+                usuario: userName,
             });
 
             const aiMessage: ChatMessage = {
                 _id: Date.now().toString(),
-                text: response.response,
+                text: response.resposta,
                 createdAt: new Date(),
                 user: { _id: 'ai', name: aiName },
-                agent: response.agent,
+                agent: 'general',
             };
 
             get().addMessage(aiMessage);
-            set({ activeAgent: (response.agent as AgentSlug) || 'general' });
+            set({ activeAgent: 'general' });
         } catch (error) {
             const errorMessage: ChatMessage = {
                 _id: Date.now().toString(),

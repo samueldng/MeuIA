@@ -45,13 +45,7 @@ export interface Interaction {
 }
 
 export interface N8NResponse {
-    agent: string;
-    confidence: number;
-    response: string;
-    action: {
-        type: string;
-        data: Record<string, unknown>;
-    } | null;
+    resposta: string;
 }
 
 export interface AgentRegistryEntry {

@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "meuia",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.meuia.app"
@@ -46,6 +46,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f034c718-cdfb-4d5d-993e-256ab4639651"
+      }
     }
   }
 }

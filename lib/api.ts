@@ -24,25 +24,22 @@ api.interceptors.response.use(
 );
 
 interface SendMessagePayload {
-    user_id: string;
-    message: string;
-    context?: Array<{ role: string; message: string }>;
-    ai_name?: string;
-}
-
-interface SendAudioPayload {
-    user_id: string;
-    audio_base64: string;
-    ai_name?: string;
+    mensagem: string;
+    nome_ia: string;
+    usuario: string;
 }
 
 export async function sendMessage(payload: SendMessagePayload) {
-    const response = await api.post('/chat', payload);
+    // Uses the endpoint requested by user:
+    // process.env.EXPO_PUBLIC_N8N_WEBHOOK_URL + '/webhook/chat'
+    // Depending on what is in .env, usually they define the root
+    const response = await api.post('/webhook/chat', payload);
     return response.data;
 }
 
-export async function sendAudio(payload: SendAudioPayload) {
-    const response = await api.post('/voice', payload);
+export async function sendAudio(payload: SendMessagePayload) {
+    // Temporarily reusing the payload struct if they expect audio base64 as 'mensagem' text
+    const response = await api.post('/webhook/chat', payload);
     return response.data;
 }
 

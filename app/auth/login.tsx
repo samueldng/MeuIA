@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -32,7 +32,10 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        >
             <View style={styles.content}>
                 <View style={styles.logoGlow}>
                     <View style={styles.logoInner}>
@@ -84,7 +87,7 @@ export default function LoginScreen() {
 
                 <Text style={styles.disclaimer}>Seus dados ficam protegidos e privados.</Text>
             </View>
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 

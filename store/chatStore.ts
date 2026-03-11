@@ -40,7 +40,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const response: N8NResponse = await sendMessage({
                 mensagem: text,
                 nome_ia: aiName,
-                usuario: userName,
+                usuario: userId,
             });
 
             const aiMessage: ChatMessage = {
@@ -73,7 +73,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const response: N8NResponse = await sendAudio({
                 mensagem: audioBase64,
                 nome_ia: aiName,
-                usuario: userName,
+                usuario: userId,
             });
 
             const aiMessage: ChatMessage = {

@@ -1,3 +1,4 @@
+import type { Lancamento } from '@/types';
 import axios from 'axios';
 
 const N8N_WEBHOOK_URL = process.env.EXPO_PUBLIC_N8N_WEBHOOK_URL ?? '';
@@ -41,6 +42,27 @@ export async function sendAudio(payload: SendMessagePayload) {
     // Temporarily reusing the payload struct if they expect audio base64 as 'mensagem' text
     const response = await api.post('/webhook/chat', payload);
     return response.data;
+}
+
+export async function fetchLancamentos(userId: string): Promise<Lancamento[]> {
+    const response = await api.get('/webhook/lancamentos', {
+        params: { usuario: userId },
+    });
+    const raw = response.data;
+
+    // Debug: log what n8n actually returns
+    console.log('[fetchLancamentos] raw response:', JSON.stringify(raw).slice(0, 500));
+
+    // n8n can return: an array, a single object, or wrapped in a key
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') {
+        // Check common wrapper keys
+        const inner = raw.data ?? raw.items ?? raw.rows ?? raw.results;
+        if (Array.isArray(inner)) return inner;
+        // Single object with expected fields → wrap in array
+        if ('valor' in raw && 'tipo' in raw) return [raw];
+    }
+    return [];
 }
 
 export default api;

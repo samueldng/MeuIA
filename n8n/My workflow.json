@@ -1,0 +1,386 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7f6c4263-4a63-4e9e-a403-17b9788b93d4",
+      "name": "Webhook",
+      "webhookId": "4ebcc756-cc9b-4bfe-8d34-50ad344510aa"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ \"resposta\": $('AI Agent').item.json.output }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        576,
+        -48
+      ],
+      "id": "3d01d7da-f487-4f97-ada1-c0e449793745",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        176,
+        224
+      ],
+      "id": "54942ab8-d30e-42ac-ab9f-6ebe28cb21d6",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "kgn9We1eMYFcfyNR",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').item.json.body.mensagem }}",
+        "options": {
+          "systemMessage": "=Você é uma assistente pessoal altamente inteligente, amigável e especialista em finanças chamada {{ $json.body.nome_ia }}. O seu usuário se chama {{ $json.body.usuario }}.\n\nSeu objetivo principal é ajudar o {{ $json.body.usuario }} a ter uma saúde financeira incrível. \n\nDiretrizes de comportamento:\n1. Sempre que o usuário mencionar um valor gasto (ex: \"gastei 50 reais com pizza\"), confirme o registro e, se possível, sugira uma categoria (Lazer, Alimentação, Transporte, etc).\n2. Seja proativa: se ele falar de um gasto alto, dê uma dica amigável de economia.\n3. Se ele perguntar \"quanto eu gastei\", use o seu histórico de mensagens para somar os valores mencionados recentemente.\n4. Mantenha um tom encorajador, como uma mentora financeira que quer ver o Samuel prosperar.\n5. Se o usuário falar sobre ganhos/salário, comemore com ele e incentive a reserva de emergência.\n6.Sempre que o usuário informar um valor com vírgula, converta-o para ponto antes de salvar no banco de dados (ex: de 7,80 para 7.80)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        -48
+      ],
+      "id": "53ed829c-ad70-41a4-a839-8cf4ef03a1d1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "teste123"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        240
+      ],
+      "id": "1b24658b-b24a-4162-a32b-c02f71458046",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "7MWuycJa5DD8VjhH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use esta ferramenta para registrar transações. Envie: 'valor' (decimal com ponto), 'tipo' (gasto/ganho), 'categoria' e 'descricao'. Não use vírgulas no valor.",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "lancamentos",
+          "mode": "list",
+          "cachedResultName": "lancamentos"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "valor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('valor', ``, 'number') }}",
+            "usuario": "={{ $json.body.usuario }}",
+            "tipo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('tipo', ``, 'string') }}",
+            "categoria": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('categoria', ``, 'string') }}",
+            "descricao": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('descricao', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "usuario",
+              "displayName": "usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "valor",
+              "displayName": "valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "categoria",
+              "displayName": "categoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descricao",
+              "displayName": "descricao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        144
+      ],
+      "id": "837f5f3f-0d7c-4f62-8ffa-784040f94b1e",
+      "name": "Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "7MWuycJa5DD8VjhH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use esta ferramenta APENAS para apagar, deletar ou remover um lançamento financeiro. Você deve extrair da fala do usuário o parâmetro 'valor' (apenas números, convertendo vírgula para ponto) que ele deseja apagar.",
+        "operation": "executeQuery",
+        "query": "DELETE FROM lancamentos \nWHERE usuario = '{{ $json.body.usuario }}' \nAND valor = {{ $json.Query_Parameters.replace(/[^0-9.]/g, '') }};",
+        "options": {
+          "queryReplacement": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query_Parameters', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        688,
+        160
+      ],
+      "id": "df346996-3b9e-46a1-b560-d5c6406da8bf",
+      "name": "Apagar Lancamento",
+      "credentials": {
+        "postgres": {
+          "id": "7MWuycJa5DD8VjhH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use APENAS para alterar, editar ou atualizar um lançamento financeiro. Você precisa fornecer dois parâmetros: 'nome_categoria' (a palavra-chave, ex: consultoria) e 'novo_valor' (apenas números).",
+        "operation": "executeQuery",
+        "query": "UPDATE lancamentos \nSET valor = {{ $json.Query_Parameters.match(/novo_valor=([0-9.]+)/)[1] }}\nWHERE usuario = '{{ $json.body.usuario }}' \nAND categoria ILIKE '%' || '{{ decodeURIComponent($json.Query_Parameters.match(/nome_categoria=([^&]+)/)[1]) }}' || '%';",
+        "options": {
+          "queryReplacement": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query_Parameters', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        544,
+        176
+      ],
+      "id": "d0ed5866-faa5-4e92-b4de-184a51d3a318",
+      "name": "Editar Lancamento",
+      "credentials": {
+        "postgres": {
+          "id": "7MWuycJa5DD8VjhH",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use esta ferramenta SEMPRE que o usuário pedir um resumo financeiro, extrato, histórico de lançamentos, saldo atual ou total de gastos e ganhos.",
+        "operation": "executeQuery",
+        "query": "SELECT tipo, valor, categoria, descricao, to_char(data, 'DD/MM/YYYY') as data \nFROM lancamentos \nWHERE usuario = '{{ $json.body.usuario }}' \nORDER BY data DESC \nLIMIT 50;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        144
+      ],
+      "id": "e93bd45e-e8c8-4036-987b-454f372e17c5",
+      "name": "Consultar Resumo",
+      "credentials": {
+        "postgres": {
+          "id": "7MWuycJa5DD8VjhH",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar Lancamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Editar Lancamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Resumo": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "af6d0637-11a6-42c0-874f-821667684c31",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "52f2e494202b734fcd3f3c019df930cc60a21e2c4c2da9283ca25ff51fd8bbf2"
+  },
+  "id": "YxOZHHKlRhv17s6A",
+  "tags": []
+}

@@ -22,6 +22,16 @@ export interface Transaction {
     created_at: string;
 }
 
+export interface Lancamento {
+    id?: number;
+    usuario: string;
+    tipo: 'gasto' | 'ganho';
+    valor: number;
+    categoria: string;
+    descricao: string | null;
+    data: string;
+}
+
 export interface UserProfile {
     id: string;
     user_id: string;

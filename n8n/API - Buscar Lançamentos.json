@@ -1,0 +1,97 @@
+{
+  "name": "API - Buscar Lançamentos",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "lancamentos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "79e4a039-5650-43c9-8f03-4986569ed30d",
+      "name": "Webhook",
+      "webhookId": "2a4a7bc2-77a5-4979-8905-a564a1d0f8c1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Postgres').all().map(item => item.json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        416,
+        0
+      ],
+      "id": "ecc56512-e24a-4a92-b9f3-48817ed87a62",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM lancamentos \nWHERE usuario = $1 \nORDER BY data DESC;",
+        "options": {
+          "queryReplacement": "={{ $json.query.usuario }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "37f31790-6942-4860-828a-aa21c41ea1a9",
+      "name": "Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "7MWuycJa5DD8VjhH",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "79af16a0-99b5-471f-bdab-86d1ccbb5de1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "52f2e494202b734fcd3f3c019df930cc60a21e2c4c2da9283ca25ff51fd8bbf2"
+  },
+  "id": "YAhdKpOCyq5DWAWg",
+  "tags": []
+}

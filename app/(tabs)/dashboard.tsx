@@ -1,9 +1,17 @@
 import { Colors } from '@/constants/Colors';
-import { supabase } from '@/lib/supabase';
+import { fetchLancamentos } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import type { Transaction } from '@/types';
+import type { Lancamento } from '@/types';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+    ActivityIndicator,
+    FlatList,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
 
 const CATEGORY_ICONS: Record<string, string> = {
     alimentação: '🍔', transporte: '🚗', moradia: '🏠', lazer: '🎮',
@@ -15,64 +23,112 @@ function getIcon(category: string): string {
     return CATEGORY_ICONS[category.toLowerCase()] ?? '📋';
 }
 
-const TransactionItem = React.memo(({ item }: { item: Transaction }) => (
-    <View style={styles.transactionItem}>
-        <Text style={styles.transactionIcon}>{getIcon(item.category)}</Text>
-        <View style={styles.transactionInfo}>
-            <Text style={styles.transactionCategory}>{item.category}</Text>
-            <Text style={styles.transactionDesc}>{item.description ?? '—'}</Text>
+function mapTipo(tipo: string): 'income' | 'expense' {
+    return tipo === 'ganho' ? 'income' : 'expense';
+}
+
+const TransactionItem = React.memo(({ item }: { item: Lancamento }) => {
+    const type = mapTipo(item.tipo);
+    const dateStr = new Date(item.data).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+    });
+
+    return (
+        <View style={styles.transactionItem}>
+            <Text style={styles.transactionIcon}>{getIcon(item.categoria)}</Text>
+            <View style={styles.transactionInfo}>
+                <Text style={styles.transactionCategory}>{item.categoria}</Text>
+                <Text style={styles.transactionDesc}>
+                    {item.descricao ?? '—'} · {dateStr}
+                </Text>
+            </View>
+            <Text
+                style={[
+                    styles.transactionAmount,
+                    { color: type === 'income' ? Colors.dark.success : Colors.dark.error },
+                ]}
+            >
+                {type === 'income' ? '+' : '-'} R${Number(item.valor).toFixed(2)}
+            </Text>
         </View>
-        <Text
-            style={[
-                styles.transactionAmount,
-                { color: item.type === 'income' ? Colors.dark.success : Colors.dark.error },
-            ]}
-        >
-            {item.type === 'income' ? '+' : '-'} R${Number(item.amount).toFixed(2)}
-        </Text>
-    </View>
-));
+    );
+});
 
 export default function DashboardScreen() {
     const { user } = useAuthStore();
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
     const [monthTotal, setMonthTotal] = useState({ income: 0, expense: 0 });
+    const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const loadData = useCallback(async (silent = false) => {
         if (!user) return;
-        const fetchData = async () => {
-            const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-            const { data } = await supabase
-                .from('transactions')
-                .select('*')
-                .eq('user_id', user.id)
-                .gte('date', startOfMonth)
-                .order('date', { ascending: false });
+        if (!silent) setIsLoading(true);
+        setError(null);
 
-            if (data) {
-                setTransactions(data);
-                const totals = data.reduce(
-                    (acc, t) => {
-                        if (t.type === 'income') acc.income += Number(t.amount);
-                        else acc.expense += Number(t.amount);
-                        return acc;
-                    },
-                    { income: 0, expense: 0 }
-                );
-                setMonthTotal(totals);
-            }
-        };
-        fetchData();
+        try {
+            const data = await fetchLancamentos(user.id);
+
+            setLancamentos(data);
+
+            const totals = data.reduce(
+                (acc, l) => {
+                    const val = Number(l.valor) || 0;
+                    if (l.tipo === 'ganho') acc.income += val;
+                    else acc.expense += val;
+                    return acc;
+                },
+                { income: 0, expense: 0 },
+            );
+            setMonthTotal(totals);
+        } catch (err) {
+            setError('Não foi possível carregar os dados financeiros.');
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
     }, [user]);
 
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    const onRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        loadData(true);
+    }, [loadData]);
+
     const balance = monthTotal.income - monthTotal.expense;
-    const renderItem = useCallback(({ item }: { item: Transaction }) => <TransactionItem item={item} />, []);
-    const keyExtractor = useCallback((item: Transaction) => item.id, []);
+
+    const renderItem = useCallback(
+        ({ item }: { item: Lancamento }) => <TransactionItem item={item} />,
+        [],
+    );
+    const keyExtractor = useCallback(
+        (item: Lancamento, index: number) => item.id?.toString() ?? `l-${index}`,
+        [],
+    );
+
+    if (isLoading) {
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color={Colors.dark.primary} />
+                <Text style={styles.loadingText}>Carregando painel...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
             <Text style={styles.headerTitle}>📊 Painel Financeiro</Text>
+
+            {error && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>⚠️ {error}</Text>
+                </View>
+            )}
 
             {/* Summary Cards */}
             <View style={styles.cardsRow}>
@@ -103,19 +159,27 @@ export default function DashboardScreen() {
                 </Text>
             </View>
 
-            {/* Transaction List — memoized items per mobile-design-thinking */}
+            {/* Transaction List */}
             <Text style={styles.sectionTitle}>Últimas Transações</Text>
             <FlatList
-                data={transactions}
+                data={lancamentos}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={onRefresh}
+                        tintColor={Colors.dark.primary}
+                        colors={[Colors.dark.primary]}
+                    />
+                }
                 ListEmptyComponent={
                     <View style={styles.empty}>
                         <Text style={styles.emptyIcon}>💸</Text>
                         <Text style={styles.emptyText}>
-                            Nenhuma transação ainda.{'\n'}Diga no chat: "Gastei R$30 no almoço"
+                            Nenhuma transação este mês.{'\n'}Diga no chat: "Gastei R$30 no almoço"
                         </Text>
                     </View>
                 }
@@ -130,12 +194,37 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.dark.background,
         paddingTop: Platform.OS === 'ios' ? 60 : 44,
     },
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.dark.background,
+    },
+    loadingText: {
+        color: Colors.dark.textSecondary,
+        fontSize: 14,
+        marginTop: 12,
+    },
     headerTitle: {
         fontSize: 22,
         fontWeight: '700',
         color: Colors.dark.text,
         paddingHorizontal: 20,
         marginBottom: 20,
+    },
+    errorBanner: {
+        marginHorizontal: 20,
+        marginBottom: 12,
+        backgroundColor: Colors.dark.error + '18',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 0.5,
+        borderColor: Colors.dark.error + '40',
+    },
+    errorText: {
+        color: Colors.dark.error,
+        fontSize: 13,
+        textAlign: 'center',
     },
     cardsRow: {
         flexDirection: 'row',

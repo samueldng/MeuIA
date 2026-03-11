@@ -99,6 +99,10 @@ export default function SettingsScreen() {
                     <Text style={styles.fieldLabel}>Email</Text>
                     <Text style={styles.fieldValue}>{user?.email ?? '—'}</Text>
                 </View>
+                <View style={[styles.fieldRow, { marginTop: 8 }]}>
+                    <Text style={styles.fieldLabel}>User ID</Text>
+                    <Text style={[styles.fieldValue, { fontSize: 11 }]} selectable>{user?.id ?? '—'}</Text>
+                </View>
             </View>
 
             {/* Sign Out */}

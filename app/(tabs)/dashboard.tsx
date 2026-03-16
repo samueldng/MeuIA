@@ -1,3 +1,5 @@
+import { ActivitiesList } from '@/components/dashboard/ActivitiesList';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Colors } from '@/constants/Colors';
 import { fetchLancamentos } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -12,6 +14,7 @@ import {
     Text,
     View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 const CATEGORY_ICONS: Record<string, string> = {
     alimentação: '🍔', transporte: '🚗', moradia: '🏠', lazer: '🎮',
@@ -63,6 +66,10 @@ export default function DashboardScreen() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Segmented Control State
+    const TABS = ['Financeiro', 'Atividades'];
+    const [activeTab, setActiveTab] = useState(TABS[0]);
+
     const loadData = useCallback(async (silent = false) => {
         if (!user) return;
         if (!silent) setIsLoading(true);
@@ -70,7 +77,6 @@ export default function DashboardScreen() {
 
         try {
             const data = await fetchLancamentos(user.id);
-
             setLancamentos(data);
 
             const totals = data.reduce(
@@ -120,17 +126,15 @@ export default function DashboardScreen() {
         );
     }
 
-    return (
-        <View style={styles.container}>
-            <Text style={styles.headerTitle}>📊 Painel Financeiro</Text>
-
+    // Componente Interno do Financeiro (para manter o layout limpo)
+    const renderFinanceiroView = () => (
+        <Animated.View entering={FadeIn} exiting={FadeOut} style={{ flex: 1 }}>
             {error && (
                 <View style={styles.errorBanner}>
                     <Text style={styles.errorText}>⚠️ {error}</Text>
                 </View>
             )}
 
-            {/* Summary Cards */}
             <View style={styles.cardsRow}>
                 <View style={[styles.card, styles.cardIncome]}>
                     <Text style={styles.cardLabel}>Receitas</Text>
@@ -146,7 +150,6 @@ export default function DashboardScreen() {
                 </View>
             </View>
 
-            {/* Balance */}
             <View style={styles.balanceCard}>
                 <Text style={styles.balanceLabel}>Saldo do Mês</Text>
                 <Text
@@ -159,7 +162,6 @@ export default function DashboardScreen() {
                 </Text>
             </View>
 
-            {/* Transaction List */}
             <Text style={styles.sectionTitle}>Últimas Transações</Text>
             <FlatList
                 data={lancamentos}
@@ -184,6 +186,20 @@ export default function DashboardScreen() {
                     </View>
                 }
             />
+        </Animated.View>
+    );
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.headerTitle}>Painel</Text>
+
+            <SegmentedControl
+                tabs={TABS}
+                activeTab={activeTab}
+                onTabPress={(tab) => setActiveTab(tab)}
+            />
+
+            {activeTab === 'Financeiro' ? renderFinanceiroView() : <ActivitiesList />}
         </View>
     );
 }
@@ -206,11 +222,12 @@ const styles = StyleSheet.create({
         marginTop: 12,
     },
     headerTitle: {
-        fontSize: 22,
-        fontWeight: '700',
+        fontSize: 28,
+        fontWeight: '800',
         color: Colors.dark.text,
         paddingHorizontal: 20,
         marginBottom: 20,
+        letterSpacing: -0.5,
     },
     errorBanner: {
         marginHorizontal: 20,

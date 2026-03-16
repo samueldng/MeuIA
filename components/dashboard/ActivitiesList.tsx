@@ -113,7 +113,12 @@ export function ActivitiesList() {
                 throw new Error(`Erro HTTP: ${response.status}`);
             }
 
-            const rawData = await response.json();
+            const text = await response.text();
+            if (!text) {
+                setData([]);
+                return;
+            }
+            const rawData = JSON.parse(text);
 
             // Garantir que os dados sejam sempre um array, caso o n8n retorne um único objeto
             const dataArray: ActivityEvent[] = Array.isArray(rawData) ? rawData : [rawData];

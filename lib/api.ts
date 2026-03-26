@@ -2,6 +2,8 @@ import type { Lancamento } from '@/types';
 import axios from 'axios';
 
 const N8N_WEBHOOK_URL = process.env.EXPO_PUBLIC_N8N_WEBHOOK_URL ?? '';
+const N8N_ENV = process.env.EXPO_PUBLIC_N8N_ENV ?? 'production';
+const WEBHOOK_PATH = N8N_ENV === 'test' ? '/webhook-test' : '/webhook';
 
 const api = axios.create({
     baseURL: N8N_WEBHOOK_URL,
@@ -31,21 +33,19 @@ interface SendMessagePayload {
 }
 
 export async function sendMessage(payload: SendMessagePayload) {
-    // Uses the endpoint requested by user:
-    // process.env.EXPO_PUBLIC_N8N_WEBHOOK_URL + '/webhook/chat'
-    // Depending on what is in .env, usually they define the root
-    const response = await api.post('/webhook/chat', payload);
+    // Uses the endpoint depending on N8N_ENV configuration
+    const response = await api.post(`${WEBHOOK_PATH}/chat`, payload);
     return response.data;
 }
 
 export async function sendAudio(payload: SendMessagePayload) {
     // Temporarily reusing the payload struct if they expect audio base64 as 'mensagem' text
-    const response = await api.post('/webhook/chat', payload);
+    const response = await api.post(`${WEBHOOK_PATH}/chat`, payload);
     return response.data;
 }
 
 export async function fetchLancamentos(userId: string): Promise<Lancamento[]> {
-    const response = await api.get('/webhook/lancamentos', {
+    const response = await api.get(`${WEBHOOK_PATH}/lancamentos`, {
         params: { usuario: userId },
     });
     const raw = response.data;

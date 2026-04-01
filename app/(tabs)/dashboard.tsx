@@ -1,17 +1,21 @@
 import { ActivitiesList } from '@/components/dashboard/ActivitiesList';
+import { CloseMonthModal } from '@/components/dashboard/CloseMonthModal';
+import { MonthSelector } from '@/components/dashboard/MonthSelector';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Colors } from '@/constants/Colors';
-import { fetchLancamentos } from '@/lib/api';
+import { fecharMes, fetchLancamentos } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Lancamento } from '@/types';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Platform,
     RefreshControl,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -21,6 +25,11 @@ const CATEGORY_ICONS: Record<string, string> = {
     saúde: '💊', educação: '📚', compras: '🛒', receita: '💰',
     salário: '💼', outro: '📋',
 };
+
+const MONTHS = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 function getIcon(category: string): string {
     return CATEGORY_ICONS[category.toLowerCase()] ?? '📋';
@@ -32,9 +41,11 @@ function mapTipo(tipo: string): 'income' | 'expense' {
 
 const TransactionItem = React.memo(({ item }: { item: Lancamento }) => {
     const type = mapTipo(item.tipo);
+    // Adicionamos timezone UTC p/ evitar off-by-one errors se o dado vier do backend YYYY-MM-DD
     const dateStr = new Date(item.data).toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: 'short',
+        timeZone: 'UTC'
     });
 
     return (
@@ -70,13 +81,21 @@ export default function DashboardScreen() {
     const TABS = ['Financeiro', 'Atividades'];
     const [activeTab, setActiveTab] = useState(TABS[0]);
 
+    // Ciclo Mensal State
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    
+    // UI Modal e Loading do botão Fechar
+    const [showCloseMonthModal, setShowCloseMonthModal] = useState(false);
+    const [isClosingMonth, setIsClosingMonth] = useState(false);
+
     const loadData = useCallback(async (silent = false) => {
         if (!user) return;
         if (!silent) setIsLoading(true);
         setError(null);
 
         try {
-            const data = await fetchLancamentos(user.id);
+            const data = await fetchLancamentos(user.id, selectedMonth, selectedYear);
             setLancamentos(data);
 
             const totals = data.reduce(
@@ -95,7 +114,7 @@ export default function DashboardScreen() {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [user]);
+    }, [user, selectedMonth, selectedYear]);
 
     useEffect(() => {
         loadData();
@@ -105,8 +124,42 @@ export default function DashboardScreen() {
         setIsRefreshing(true);
         loadData(true);
     }, [loadData]);
+    
+    const handleCloseMonth = async () => {
+        if (!user) return;
+        setIsClosingMonth(true);
+        try {
+            const res = await fecharMes(user.id, selectedMonth, selectedYear);
+            if (res.success !== false) { // Assuming success or undefined means OK from n8n simple returns
+                setShowCloseMonthModal(false);
+                Alert.alert('Sucesso', 'Mês fechado e saldo transportado.');
+                
+                // Mover para o próximo mês
+                let nextMonth = selectedMonth + 1;
+                let nextYear = selectedYear;
+                if (nextMonth > 12) {
+                    nextMonth = 1;
+                    nextYear += 1;
+                }
+                setSelectedMonth(nextMonth);
+                setSelectedYear(nextYear);
+            } else {
+                setError(res.message || 'Falha ao fechar o mês.');
+                setShowCloseMonthModal(false);
+            }
+        } catch (err: any) {
+            setError('Falha na comunicação com o servidor para fechar o mês.');
+            setShowCloseMonthModal(false);
+        } finally {
+            setIsClosingMonth(false);
+        }
+    };
 
     const balance = monthTotal.income - monthTotal.expense;
+    
+    const currentDate = new Date();
+    const isPastMonth = selectedYear < currentDate.getFullYear() || 
+                        (selectedYear === currentDate.getFullYear() && selectedMonth < currentDate.getMonth() + 1);
 
     const renderItem = useCallback(
         ({ item }: { item: Lancamento }) => <TransactionItem item={item} />,
@@ -117,7 +170,7 @@ export default function DashboardScreen() {
         [],
     );
 
-    if (isLoading) {
+    if (isLoading && lancamentos.length === 0) {
         return (
             <View style={styles.centered}>
                 <ActivityIndicator size="large" color={Colors.dark.primary} />
@@ -126,14 +179,23 @@ export default function DashboardScreen() {
         );
     }
 
-    // Componente Interno do Financeiro (para manter o layout limpo)
+    // Componente Interno do Financeiro
     const renderFinanceiroView = () => (
-        <Animated.View entering={FadeIn} exiting={FadeOut} style={{ flex: 1 }}>
+        <Animated.View entering={FadeIn} style={{ flex: 1 }}>
             {error && (
                 <View style={styles.errorBanner}>
                     <Text style={styles.errorText}>⚠️ {error}</Text>
                 </View>
             )}
+
+            <MonthSelector 
+                month={selectedMonth} 
+                year={selectedYear} 
+                onMonthChange={(m, y) => {
+                    setSelectedMonth(m);
+                    setSelectedYear(y);
+                }} 
+            />
 
             <View style={styles.cardsRow}>
                 <View style={[styles.card, styles.cardIncome]}>
@@ -178,12 +240,18 @@ export default function DashboardScreen() {
                     />
                 }
                 ListEmptyComponent={
-                    <View style={styles.empty}>
-                        <Text style={styles.emptyIcon}>💸</Text>
-                        <Text style={styles.emptyText}>
-                            Nenhuma transação este mês.{'\n'}Diga no chat: "Gastei R$30 no almoço"
-                        </Text>
-                    </View>
+                    isLoading ? (
+                         <View style={styles.empty}>
+                            <ActivityIndicator size="small" color={Colors.dark.primary} />
+                         </View>
+                    ) : (
+                        <View style={styles.empty}>
+                            <Text style={styles.emptyIcon}>💸</Text>
+                            <Text style={styles.emptyText}>
+                                Nenhuma transação.{'\n'}Diga no chat: "Gastei R$30 no almoço"
+                            </Text>
+                        </View>
+                    )
                 }
             />
         </Animated.View>
@@ -191,7 +259,18 @@ export default function DashboardScreen() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.headerTitle}>Painel</Text>
+            <View style={styles.headerRow}>
+                <Text style={styles.headerTitle}>Painel</Text>
+                
+                {activeTab === 'Financeiro' && isPastMonth && (
+                    <TouchableOpacity 
+                        style={styles.closeMonthHeaderBtn}
+                        onPress={() => setShowCloseMonthModal(true)}
+                    >
+                        <Text style={styles.closeMonthIcon}>🔒</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
 
             <SegmentedControl
                 tabs={TABS}
@@ -200,6 +279,15 @@ export default function DashboardScreen() {
             />
 
             {activeTab === 'Financeiro' ? renderFinanceiroView() : <ActivitiesList />}
+            
+            <CloseMonthModal 
+                visible={showCloseMonthModal}
+                monthName={MONTHS[selectedMonth - 1]}
+                year={selectedYear}
+                isLoading={isClosingMonth}
+                onConfirm={handleCloseMonth}
+                onCancel={() => setShowCloseMonthModal(false)}
+            />
         </View>
     );
 }
@@ -221,13 +309,28 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginTop: 12,
     },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
     headerTitle: {
         fontSize: 28,
         fontWeight: '800',
         color: Colors.dark.text,
-        paddingHorizontal: 20,
-        marginBottom: 20,
         letterSpacing: -0.5,
+    },
+    closeMonthHeaderBtn: {
+        backgroundColor: Colors.dark.surface,
+        padding: 8,
+        borderRadius: 12,
+        borderWidth: 0.5,
+        borderColor: Colors.dark.border,
+    },
+    closeMonthIcon: {
+        fontSize: 20,
     },
     errorBanner: {
         marginHorizontal: 20,

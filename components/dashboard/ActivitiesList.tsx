@@ -1,4 +1,5 @@
 import { Colors } from '@/constants/Colors';
+import { fetchAtividades } from '@/lib/api';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -45,9 +46,9 @@ function groupActivities(data: ActivityEvent[]) {
 const getEventIcon = (type: string) => {
     switch (type) {
         case 'meeting':
-            return { icon: '📅', color: Colors.dark.primary }; // Replace with real icons
+            return { icon: '📅', color: Colors.dark.primary };
         case 'task':
-            return { icon: '✅', color: Colors.dark.success }; // Replace with real icons
+            return { icon: '✅', color: Colors.dark.success };
         default:
             return { icon: '🕒', color: Colors.dark.textSecondary };
     }
@@ -94,45 +95,15 @@ export function ActivitiesList() {
         setError(null);
 
         try {
-            // Implementando timeout de 10 segundos
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const atividades = await fetchAtividades();
 
-            const response = await fetch('https://n8n-meuia.onrender.com/webhook/meuia-agenda', {
-                method: 'GET',
-                signal: controller.signal,
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
-            }
-
-            const text = await response.text();
-            if (!text) {
-                setData([]);
-                return;
-            }
-            const rawData = JSON.parse(text);
-
-            // Garantir que os dados sejam sempre um array, caso o n8n retorne um único objeto
-            const dataArray: ActivityEvent[] = Array.isArray(rawData) ? rawData : [rawData];
-
+            const dataArray: ActivityEvent[] = Array.isArray(atividades) ? atividades : [atividades];
             const groupedData = groupActivities(dataArray);
 
             setData(groupedData);
         } catch (err: any) {
-            console.error('Fetch error:', err);
-            if (err.name === 'AbortError') {
-                setError('Tempo limite esgotado. Verifique sua conexão.');
-            } else {
-                setError(`Erro: ${err.message || 'Falha ao buscar atividades.'}`);
-            }
+            console.error('Erro na agenda:', err);
+            setError(`Erro: ${err.message || 'Falha ao buscar atividades.'}`);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);

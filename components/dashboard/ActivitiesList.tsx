@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/Colors';
-import { fetchAtividades } from '@/lib/api';
+import { CalendarAPI } from '@/lib/api';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -95,7 +95,8 @@ export function ActivitiesList() {
         setError(null);
 
         try {
-            const atividades = await fetchAtividades();
+            const response = await CalendarAPI.getEvents();
+            const atividades = response.data.data; // Access the payload from the wrapper
 
             const dataArray: ActivityEvent[] = Array.isArray(atividades) ? atividades : [atividades];
             const groupedData = groupActivities(dataArray);

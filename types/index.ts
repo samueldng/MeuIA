@@ -54,8 +54,13 @@ export interface Interaction {
     created_at: string;
 }
 
-export interface N8NResponse {
-    resposta: string;
+export interface AiResponse {
+    success: boolean;
+    data: {
+        resposta: string;
+        agent: string;
+    };
+    timestamp: string;
 }
 
 export interface AgentRegistryEntry {

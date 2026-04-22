@@ -3,7 +3,7 @@ import { CloseMonthModal } from '@/components/dashboard/CloseMonthModal';
 import { MonthSelector } from '@/components/dashboard/MonthSelector';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Colors } from '@/constants/Colors';
-import { fecharMes, fetchLancamentos } from '@/lib/api';
+import { FinanceAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Lancamento } from '@/types';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -95,7 +95,8 @@ export default function DashboardScreen() {
         setError(null);
 
         try {
-            const data = await fetchLancamentos(user.id, selectedMonth, selectedYear);
+            const response = await FinanceAPI.getEntries();
+            const data = response.data.data;
             setLancamentos(data);
 
             const totals = data.reduce(
@@ -129,8 +130,9 @@ export default function DashboardScreen() {
         if (!user) return;
         setIsClosingMonth(true);
         try {
-            const res = await fecharMes(user.id, selectedMonth, selectedYear);
-            if (res.success !== false) { // Assuming success or undefined means OK from n8n simple returns
+            const response = await FinanceAPI.closeMonth();
+            const res = response.data.data;
+            if (res.success !== false) { // Assuming success or undefined means OK
                 setShowCloseMonthModal(false);
                 Alert.alert('Sucesso', 'Mês fechado e saldo transportado.');
                 

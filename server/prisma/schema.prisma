@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────
+
+enum Tier {
+  FREE
+  PREMIUM
+}
+
+enum Role {
+  user
+  assistant
+  system
+  tool
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+// ─── CORE MODELS ─────────────────────────────────────────
+
+model User {
+  id         String   @id @default(uuid())
+  supabaseId String   @unique @map("supabase_id")
+  email      String   @unique
+  name       String?
+  aiName     String?  @map("ai_name")
+  tier       Tier     @default(FREE)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  profile       Profile?
+  conversations Conversation[]
+  lancamentos   Lancamento[]
+  appointments  Appointment[]
+  subscription  Subscription?
+  agentConfigs  UserAgentConfig[]
+  usageLogs     UsageLog[]
+
+  @@map("users")
+}
+
+model Profile {
+  id              String @id @default(uuid())
+  userId          String @unique @map("user_id")
+  voicePreference String @default("default") @map("voice_preference")
+  memoryLimit     Int    @default(50) @map("memory_limit")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ─── AGENT MARKETPLACE ───────────────────────────────────
+
+model Agent {
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  name         String
+  description  String?
+  icon         String
+  color        String
+  category     String
+  tier         Tier     @default(FREE)
+  systemPrompt String   @map("system_prompt")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tools   AgentTool[]
+  configs UserAgentConfig[]
+
+  @@map("agents")
+}
+
+model AgentTool {
+  id          String @id @default(uuid())
+  agentId     String @map("agent_id")
+  name        String
+  description String
+  handler     String
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_tools")
+}
+
+model UserAgentConfig {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  agentId   String   @map("agent_id")
+  config    Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@map("user_agent_configs")
+}
+
+// ─── CONVERSATIONS ───────────────────────────────────────
+
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  agentSlug String?  @map("agent_slug")
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  role           Role
+  content        String
+  agentSlug      String?  @map("agent_slug")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// ─── FINANCE ─────────────────────────────────────────────
+
+model Lancamento {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  tipo      String
+  valor     Decimal  @db.Decimal(10, 2)
+  categoria String?
+  descricao String?
+  data      DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([data(sort: Desc)])
+  @@map("lancamentos")
+}
+
+// ─── CALENDAR ────────────────────────────────────────────
+
+model Appointment {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  title       String
+  description String?
+  startAt     DateTime  @map("start_at")
+  endAt       DateTime? @map("end_at")
+  allDay      Boolean   @default(false) @map("all_day")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("appointments")
+}
+
+// ─── SUBSCRIPTIONS ───────────────────────────────────────
+
+model SubscriptionPlan {
+  id           String  @id @default(uuid())
+  name         String
+  priceMonthly Decimal @db.Decimal(10, 2) @map("price_monthly")
+  msgLimit     Int?    @map("msg_limit")
+  features     Json    @default("[]")
+  isActive     Boolean @default(true) @map("is_active")
+
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String    @unique @map("user_id")
+  planId           String    @map("plan_id")
+  status           SubStatus @default(ACTIVE)
+  externalId       String?   @map("external_id")
+  currentPeriodEnd DateTime  @map("current_period_end")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+// ─── USAGE TRACKING ──────────────────────────────────────
+
+model UsageLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  agentSlug String   @map("agent_slug")
+  tokens    Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("usage_logs")
+}

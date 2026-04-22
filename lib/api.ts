@@ -1,115 +1,66 @@
-import type { Lancamento } from '@/types';
 import axios from 'axios';
+import { supabase } from './supabase';
 
-const N8N_WEBHOOK_URL = process.env.EXPO_PUBLIC_N8N_WEBHOOK_URL ?? '';
-const N8N_ENV = process.env.EXPO_PUBLIC_N8N_ENV ?? 'production';
-const WEBHOOK_PATH = N8N_ENV === 'test' ? '/webhook-test' : '/webhook';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.206:3000/api/v1';
 
-const api = axios.create({
-    baseURL: N8N_WEBHOOK_URL,
-    timeout: 30000,
-    headers: {
-        'Content-Type': 'application/json',
-    },
+export const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 15000, // Timeout rigoroso para evitar UI travada (15s)
 });
 
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.code === 'ECONNABORTED') {
-            return Promise.reject(new Error('Timeout: o servidor demorou para responder.'));
-        }
-        if (!error.response) {
-            return Promise.reject(new Error('Sem conexão com o servidor.'));
-        }
-        return Promise.reject(error);
+// Interceptor de Requisição: Injeta o Bearer Token do Supabase dinamicamente
+api.interceptors.request.use(
+  async (config) => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
+    
+    if (error) {
+      console.error('[API Setup] Erro ao recuperar sessão do Supabase:', error.message);
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
-interface SendMessagePayload {
-    mensagem: string;
-    nome_ia: string;
-    usuario: string;
-}
-
-export async function sendMessage(payload: SendMessagePayload) {
-    // Uses the endpoint depending on N8N_ENV configuration
-    const response = await api.post(`${WEBHOOK_PATH}/chat`, payload);
-    return response.data;
-}
-
-export async function sendAudio(payload: SendMessagePayload) {
-    // Temporarily reusing the payload struct if they expect audio base64 as 'mensagem' text
-    const response = await api.post(`${WEBHOOK_PATH}/chat`, payload);
-    return response.data;
-}
-
-export async function fetchLancamentos(userId: string, mes?: number, ano?: number): Promise<Lancamento[]> {
-    const params: Record<string, any> = { usuario: userId };
-    if (mes) params.mes = mes;
-    if (ano) params.ano = ano;
-
-    const response = await api.get(`${WEBHOOK_PATH}/lancamentos`, { params });
-    const raw = response.data;
-
-    // Debug: log what n8n actually returns
-    console.log('[fetchLancamentos] raw response:', JSON.stringify(raw).slice(0, 500));
-
-    // n8n can return: an array, a single object, or wrapped in a key
-    if (Array.isArray(raw)) return raw;
-    if (raw && typeof raw === 'object') {
-        // Check common wrapper keys
-        const inner = raw.data ?? raw.items ?? raw.rows ?? raw.results;
-        if (Array.isArray(inner)) return inner;
-        // Single object with expected fields → wrap in array
-        if ('valor' in raw && 'tipo' in raw) return [raw];
+// Interceptor de Resposta: Tratamento centralizado de exceções
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    // Se o token expirar (401), podemos implementar a lógica de refresh aqui no futuro
+    if (error.response?.status === 401) {
+      console.warn('[API Auth] Token expirado ou inválido. Redirecionando para login...');
+      // Lógica do Zustand para deslogar o usuário iria aqui
     }
-    return [];
-}
+    
+    // Formata o erro para o Zustand consumir de forma limpa
+    const customError = new Error(error.response?.data?.message || 'Erro na comunicação com o servidor');
+    return Promise.reject(customError);
+  }
+);
 
-export async function fecharMes(userId: string, mes: number, ano: number): Promise<{ success: boolean; saldoAnterior?: number; message?: string }> {
-    const response = await api.post(`${WEBHOOK_PATH}/fechar-mes`, {
-        usuario: userId,
-        mes,
-        ano,
-    });
-    return response.data;
-}
+// --- Contratos de API (Endpoints atualizados para o NestJS) ---
 
-// ==========================================
-// NOVA FUNÇÃO ADICIONADA: AGENDA (ATIVIDADES)
-// ==========================================
-export async function fetchAtividades(userId?: string): Promise<any[]> {
-    // Herdando as configurações do axios (Timeout de 30s + Rota correta)
-    const response = await api.get(`${WEBHOOK_PATH}/meuia-agenda`, {
-        params: { usuario: userId } // Opcional, caso envie ID do usuário
-    });
-    const raw = response.data;
+export const ChatAPI = {
+  sendMessage: (content: string, agentSlug?: string) => 
+    api.post('/chat/message', { mensagem: content, nome_ia: agentSlug }),
+};
 
-    console.log('[fetchAtividades] raw response:', JSON.stringify(raw).slice(0, 500));
+export const FinanceAPI = {
+  getEntries: () => api.get('/finance/entries'),
+  closeMonth: () => api.post('/finance/close-month'),
+};
 
-    // Tratamento para os diferentes formatos que o n8n pode devolver
-    if (Array.isArray(raw)) return raw;
-
-    if (raw && typeof raw === 'object') {
-        if (raw.minha_lista && Array.isArray(raw.minha_lista)) return raw.minha_lista;
-        if (raw.payloadApp && Array.isArray(raw.payloadApp)) return raw.payloadApp;
-
-        const inner = raw.data ?? raw.items ?? raw.rows ?? raw.results;
-        if (Array.isArray(inner)) return inner;
-    }
-
-    // Se o n8n tiver enviado como texto puro (String JSON)
-    if (typeof raw === 'string') {
-        try {
-            return JSON.parse(raw);
-        } catch (e) {
-            console.error('Erro ao fazer parse da agenda:', e);
-            return [];
-        }
-    }
-
-    return [];
-}
+export const CalendarAPI = {
+  getEvents: () => api.get('/calendar/events'),
+};
 
 export default api;

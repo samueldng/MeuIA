@@ -1,7 +1,7 @@
 import type { AgentSlug } from '@/constants/Agents';
-import { sendAudio, sendMessage } from '@/lib/api';
+import { ChatAPI } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
-import type { ChatMessage, N8NResponse } from '@/types';
+import type { ChatMessage, AiResponse } from '@/types';
 import { create } from 'zustand';
 
 interface ChatState {
@@ -37,26 +37,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ isTyping: true });
 
         try {
-            const response: N8NResponse = await sendMessage({
-                mensagem: text,
-                nome_ia: aiName,
-                usuario: userId,
-            });
+            const response = await ChatAPI.sendMessage(text, aiName);
+            const data = response.data as AiResponse;
 
             const aiMessage: ChatMessage = {
                 _id: (Date.now() + 1).toString(),
-                text: response.resposta,
+                text: data.data.resposta,
                 createdAt: new Date(),
                 user: { _id: 'ai', name: aiName, avatar: '🤖' },
-                agent: 'general',
+                agent: data.data.agent as AgentSlug,
             };
 
             get().addMessage(aiMessage);
-            set({ activeAgent: 'general' });
-        } catch (error) {
+            set({ activeAgent: data.data.agent as AgentSlug });
+        } catch (error: any) {
+            console.error('[sendTextMessage] error:', error);
             const errorMessage: ChatMessage = {
                 _id: (Date.now() + 1).toString(),
-                text: 'Desculpe, não consegui processar sua mensagem. Tente novamente.',
+                text: error.message || 'Desculpe, não consegui processar sua mensagem. Tente novamente.',
                 createdAt: new Date(),
                 user: { _id: 'ai', name: aiName },
             };
@@ -67,36 +65,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     },
 
     sendVoiceMessage: async (audioBase64, userId, aiName, userName) => {
-        set({ isTyping: true });
-
-        try {
-            const response: N8NResponse = await sendAudio({
-                mensagem: audioBase64,
-                nome_ia: aiName,
-                usuario: userId,
-            });
-
-            const aiMessage: ChatMessage = {
-                _id: Date.now().toString(),
-                text: response.resposta,
-                createdAt: new Date(),
-                user: { _id: 'ai', name: aiName },
-                agent: 'general',
-            };
-
-            get().addMessage(aiMessage);
-            set({ activeAgent: 'general' });
-        } catch (error) {
-            const errorMessage: ChatMessage = {
-                _id: Date.now().toString(),
-                text: 'Não consegui processar o áudio. Tente novamente.',
-                createdAt: new Date(),
-                user: { _id: 'ai', name: aiName },
-            };
-            get().addMessage(errorMessage);
-        } finally {
-            set({ isTyping: false });
-        }
+        // NotImplementedYet on backend
+        console.warn('Voice message not migrated yet');
     },
 
     loadHistory: async (userId) => {

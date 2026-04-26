@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # ── PostgreSQL ──────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: meuia_postgres
@@ -19,6 +20,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis ───────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: meuia_redis
@@ -32,6 +34,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # ── NestJS API ──────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meuia_api
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   meuia_pgdata:
